@@ -305,7 +305,20 @@ setInterval(() => $('#fps').textContent = Math.round(app.ticker.FPS) + ' fps', 5
 function fit() { const m = state.model; if (!m) return; m.scale.set(1); const s = Math.min(app.screen.width / m.width, app.screen.height / m.height) * .95; m.scale.set(s); m.anchor.set(.5); m.position.set(app.screen.width / 2, app.screen.height / 2); }
 app.renderer.on('resize', fit);
 new ResizeObserver(() => app.resize?.()).observe($('#stage')); // ikut berubah saat tinggi preview diubah / bar browser naik-turun
-$('#bSize').onclick = () => { const c = $('main').classList.toggle('compact'); $('#bSize').textContent = c ? '⤢' : '⤡'; };
+$('#bSize').onclick = () => { const mn = $('main'); mn.style.removeProperty('--sh'); const c = mn.classList.toggle('compact'); $('#bSize').textContent = c ? '⤢' : '⤡'; };
+/* splitter: tarik garis untuk mengubah tinggi preview (diingat lewat localStorage) */
+(() => {
+  const mn = $('main'), sp = $('#split'), stg = $('#stage');
+  const setH = px => { px = Math.max(innerHeight * .12, Math.min(innerHeight * .68, px)); mn.classList.remove('compact'); $('#bSize').textContent = '⤡'; mn.style.setProperty('--sh', px + 'px'); };
+  const save = () => { try { localStorage.setItem('previewH', Math.round(stg.getBoundingClientRect().height)); } catch {} };
+  try { const s = +localStorage.getItem('previewH'); if (s) setH(s); } catch {}
+  let y0 = null, h0 = 0;
+  sp.addEventListener('pointerdown', e => { sp.setPointerCapture(e.pointerId); y0 = e.clientY; h0 = stg.getBoundingClientRect().height; mn.classList.add('dragging'); });
+  sp.addEventListener('pointermove', e => { if (y0 != null) setH(h0 + e.clientY - y0); });
+  const end = () => { if (y0 == null) return; y0 = null; mn.classList.remove('dragging'); save(); };
+  sp.addEventListener('pointerup', end); sp.addEventListener('pointercancel', end);
+  sp.addEventListener('keydown', e => { if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return; e.preventDefault(); setH(stg.getBoundingClientRect().height + (e.key === 'ArrowDown' ? 24 : -24)); save(); });
+})();
 
 async function openFiles(files) {
   $('#status').textContent = 'Memuat…';

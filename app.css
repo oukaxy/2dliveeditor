@@ -70,3 +70,10 @@ header{flex-wrap:nowrap;padding:6px 10px;gap:6px}
 #chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}#chips button{flex:0 0 auto;min-height:36px}
 @media(max-width:1023px){main{--sh:30dvh;grid-template-rows:var(--sh) auto auto 1fr}main.compact{--sh:14dvh}}
 @media(min-width:1024px){#bSize{display:none}}
+
+/* ---- splitter: tarik untuk ubah tinggi preview ---- */
+#split{position:absolute;left:0;right:0;bottom:0;height:28px;z-index:3;display:flex;align-items:flex-end;justify-content:center;touch-action:none;cursor:row-resize}
+#split i{display:block;width:56px;height:5px;border-radius:3px;background:var(--mu);opacity:.7;margin-bottom:5px}
+#split:active i,#split:focus-visible i{background:var(--ac);opacity:1}
+main.dragging{user-select:none}
+@media(min-width:1024px){#split{display:none}}
