@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Live2D Motion Editor</title>
+<link rel="stylesheet" href="app.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/pixi.js@6.5.10/dist/browser/pixi.min.js"></script>
+<script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/cubism4.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js"></script>
+</head><body>
+<header><b id="mname">Motion Editor</b><span id="status">Belum dimuat</span>
+<span class="sp"></span><button id="bUndo" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>↶</button><button id="bRedo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" disabled>↷</button><button id="bOpen">Buka model</button><button id="bUnload">Lepas</button><button id="bExport" class="pri">Export</button><div class="menu"><button id="bMenu" aria-haspopup="true" aria-expanded="false">Menu ▾</button><div id="menu" hidden><button id="mnImp">Import motion…</button><button id="mnSave">Simpan project</button><button id="mnLoad">Muat project…</button></div></div></header>
+<main>
+<section id="stage"><canvas id="cv"></canvas>
+<div id="drop"><p>Seret file model (.model3.json beserta asetnya) atau satu .zip ke sini</p><button id="bPick" class="pri">Pilih file</button></div>
+<span id="fps"></span></section>
+<section id="transport"><button id="bPlay" class="pri">Play</button><button id="bPrev">Dari awal</button>
+<label class="chk"><input type="checkbox" id="cLoop">Loop</label><code id="tc">00:00:00</code>
+<input id="scrub" type="range" min="0" max="150" step="any" value="0"><label class="chk">Durasi <input id="dur" type="number" min="1" value="150"> frame</label></section>
+<nav id="tabs"><button data-p="params" class="on">Parameter</button><button data-p="timeline">Timeline</button><button data-p="motions">Motion</button></nav>
+<section id="params" class="pane on"><div class="bar"><input id="q" type="search" placeholder="Cari parameter"><div id="chips"></div></div><div id="plist"><p class="empty">Muat model untuk melihat parameter.</p></div></section>
+<section id="timeline" class="pane"><div class="bar"><button id="zOut">−</button><button id="zIn">+</button><label class="chk">Keyframe baru <select id="newMode"><option value="linear">Linear</option><option value="stepped">Stepped</option><option value="inout">Ease in-out</option><option value="in">Ease in</option><option value="out">Ease out</option></select></label><small>Ketuk ◆ pindah frame; ketuk dua kali ganti mode (◆ linear, ■ stepped, ● ease).</small></div><div id="tl"></div></section>
+<section id="motions" class="pane"><div class="bar"><button id="mNew" class="pri">Baru</button><button id="mRen">Ganti nama</button><button id="mDup">Duplikat</button><button id="mDel">Hapus</button><button id="mImp">Import</button></div><div id="mlist"></div></section>
+</main>
+<dialog id="dlg"><h3>Export motion</h3><input id="fname"><pre id="json"></pre><div class="bar"><button id="dCopy">Copy</button><button id="dDl" class="pri">Download</button><button id="dClose">Tutup</button></div></dialog>
+<div id="toast"></div><input type="file" id="file" multiple hidden><input type="file" id="fMotion" accept=".json" multiple hidden><input type="file" id="fProj" accept=".json" hidden>
+<script type="module" src="app.js"></script>
+</body></html>
