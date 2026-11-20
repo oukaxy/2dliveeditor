@@ -304,6 +304,8 @@ PIXI.live2d.Live2DModel.registerTicker(PIXI.Ticker);
 setInterval(() => $('#fps').textContent = Math.round(app.ticker.FPS) + ' fps', 500);
 function fit() { const m = state.model; if (!m) return; m.scale.set(1); const s = Math.min(app.screen.width / m.width, app.screen.height / m.height) * .95; m.scale.set(s); m.anchor.set(.5); m.position.set(app.screen.width / 2, app.screen.height / 2); }
 app.renderer.on('resize', fit);
+new ResizeObserver(() => app.resize?.()).observe($('#stage')); // ikut berubah saat tinggi preview diubah / bar browser naik-turun
+$('#bSize').onclick = () => { const c = $('main').classList.toggle('compact'); $('#bSize').textContent = c ? '⤢' : '⤡'; };
 
 async function openFiles(files) {
   $('#status').textContent = 'Memuat…';
