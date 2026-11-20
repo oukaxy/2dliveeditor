@@ -1,9 +1,11 @@
+/** Mengenali ID gaya Cubism 3+ (ParamAngleX) maupun gaya lama (PARAM_ANGLE_X). */
 export function categoryOf(id) {
-  if (/^ParamAngle/.test(id)) return 'Head';
-  if (/^ParamEye/.test(id)) return 'Eyes';
-  if (/^ParamBrow|^ParamMouth|^ParamCheek/.test(id)) return 'Face';
-  if (/^ParamBody|^ParamBreath/.test(id)) return 'Body';
-  if (/^ParamArm|^ParamHand/.test(id)) return 'Arms';
+  const n = id.replace(/_/g, '').toLowerCase();
+  if (/^paramangle/.test(n)) return 'Head';
+  if (/^parameye/.test(n)) return 'Eyes';
+  if (/^param(brow|mouth|cheek)/.test(n)) return 'Face';
+  if (/^param(body|breath)/.test(n)) return 'Body';
+  if (/^param(arm|hand)/.test(n)) return 'Arms';
   return 'Other';
 }
 export function readParams(model) {

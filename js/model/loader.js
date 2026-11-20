@@ -10,13 +10,13 @@ export async function loadModelFiles(fileList) {
   const jp = [...map.keys()].find(p => /\.model3\.json$/i.test(p));
   if (!jp) throw new Error('File *.model3.json tidak ditemukan. Model Cubism 2 tidak didukung.');
   const dir = jp.includes('/') ? jp.slice(0, jp.lastIndexOf('/') + 1) : '';
-  const cache = new Map();
+  const cache = new Map(), names = new Map(); // names: blob URL → path di zip, untuk pesan error
   const url = (rel, required) => {
     const path = decodeURIComponent(new URL(rel, 'http://x/' + dir).pathname.slice(1));
     const base = path.split('/').pop();
     const key = map.has(path) ? path : [...map.keys()].find(k => k.split('/').pop() === base);
     if (!key) { if (required) throw new Error(`File "${rel}" tidak ada di pilihan file`); return undefined; }
-    if (!cache.has(key)) cache.set(key, URL.createObjectURL(map.get(key)));
+    if (!cache.has(key)) { const u = URL.createObjectURL(map.get(key)); cache.set(key, u); names.set(u, key); }
     return cache.get(key);
   };
   const json = JSON.parse(await map.get(jp).text()), fr = json.FileReferences;
@@ -27,6 +27,11 @@ export async function loadModelFiles(fileList) {
   if (fr.Expressions) fr.Expressions = fr.Expressions.map(e => ({ ...e, File: url(e.File) })).filter(e => e.File);
   if (fr.Motions) for (const g in fr.Motions) fr.Motions[g] = fr.Motions[g].map(m => ({ ...m, File: url(m.File) })).filter(m => m.File);
   const jsonUrl = URL.createObjectURL(new Blob([JSON.stringify(json)], { type: 'application/json' }));
-  const model = await PIXI.live2d.Live2DModel.from(jsonUrl, { autoInteract: false });
+  let model;
+  try { model = await PIXI.live2d.Live2DModel.from(jsonUrl, { autoInteract: false, motionPreload: PIXI.live2d.MotionPreloadStrategy?.NONE }); }
+  catch (e) {
+    const f = names.get(e?.url);
+    throw new Error(f ? `Gagal membaca "${f}" (${e.message || 'error'})` : `Gagal memuat model: ${e?.message || e}`);
+  }
   return { model, name: jp.split('/').pop().replace(/\.model3\.json$/i, '') };
 }
