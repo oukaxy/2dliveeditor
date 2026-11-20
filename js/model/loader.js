@@ -26,12 +26,17 @@ export async function loadModelFiles(fileList) {
   for (const k of ['Physics', 'Pose', 'DisplayInfo', 'UserData']) if (fr[k]) { fr[k] = url(fr[k]); if (!fr[k]) delete fr[k]; }
   if (fr.Expressions) fr.Expressions = fr.Expressions.map(e => ({ ...e, File: url(e.File) })).filter(e => e.File);
   if (fr.Motions) for (const g in fr.Motions) fr.Motions[g] = fr.Motions[g].map(m => ({ ...m, File: url(m.File) })).filter(m => m.File);
-  const jsonUrl = URL.createObjectURL(new Blob([JSON.stringify(json)], { type: 'application/json' }));
+  // Semua path di FileReferences sudah berupa blob URL absolut. `url.resolve` milik Pixi merusaknya
+  // (jadi "blob:https//…" → Network error), jadi resolveURL diganti agar meneruskan path apa adanya.
+  const S = PIXI.live2d.Cubism4ModelSettings;
+  if (!S) throw new Error('Cubism4ModelSettings tidak tersedia di build pixi-live2d-display ini');
+  const settings = new S({ ...json, url: 'model/' + jp.split('/').pop() });
+  settings.resolveURL = p => p;
   let model;
-  try { model = await PIXI.live2d.Live2DModel.from(jsonUrl, { autoInteract: false, motionPreload: PIXI.live2d.MotionPreloadStrategy?.NONE }); }
+  try { model = await PIXI.live2d.Live2DModel.from(settings, { autoInteract: false, motionPreload: PIXI.live2d.MotionPreloadStrategy?.NONE }); }
   catch (e) {
     const f = names.get(e?.url);
-    throw new Error(f ? `Gagal membaca "${f}" (${e.message || 'error'})` : `Gagal memuat model: ${e?.message || e}`);
+    throw new Error(f ? `Gagal membaca "${f}" (${e.message || 'error'})` : `Gagal memuat model: ${e?.message || e}${e?.url ? ' [' + String(e.url).slice(0, 90) + ']' : ''}`);
   }
   return { model, name: jp.split('/').pop().replace(/\.model3\.json$/i, '') };
 }
