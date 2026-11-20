@@ -303,7 +303,7 @@ const app = new PIXI.Application({ view: $('#cv'), resizeTo: $('#stage'), backgr
 PIXI.live2d.Live2DModel.registerTicker(PIXI.Ticker);
 setInterval(() => $('#fps').textContent = Math.round(app.ticker.FPS) + ' fps', 500);
 function fit() { const m = state.model; if (!m) return; m.scale.set(1); const s = Math.min(app.screen.width / m.width, app.screen.height / m.height) * .95; m.scale.set(s); m.anchor.set(.5); m.position.set(app.screen.width / 2, app.screen.height / 2); }
-app.renderer.on('resize', fit);
+app.renderer.on('resize', () => { fit(); applyView(); });
 new ResizeObserver(() => app.resize?.()).observe($('#stage')); // ikut berubah saat tinggi preview diubah / bar browser naik-turun
 $('#bSize').onclick = () => { const mn = $('main'); mn.style.removeProperty('--sh'); const c = mn.classList.toggle('compact'); $('#bSize').textContent = c ? '⤢' : '⤡'; };
 /* splitter: tarik garis untuk mengubah tinggi preview (diingat lewat localStorage) */
@@ -318,6 +318,84 @@ $('#bSize').onclick = () => { const mn = $('main'); mn.style.removeProperty('--s
   const end = () => { if (y0 == null) return; y0 = null; mn.classList.remove('dragging'); save(); };
   sp.addEventListener('pointerup', end); sp.addEventListener('pointercancel', end);
   sp.addEventListener('keydown', e => { if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return; e.preventDefault(); setH(stg.getBoundingClientRect().height + (e.key === 'ArrowDown' ? 24 : -24)); save(); });
+})();
+
+/* ---------- Zoom & pan preview (pinch, geser, double-tap, scroll) ---------- */
+const view = { z: 1, ox: 0, oy: 0 }; // ox/oy = geseran sebagai pecahan lebar/tinggi preview, relatif terhadap fit()
+const ZMIN = .5, ZMAX = 8;
+function applyView() {
+  const W = app.screen.width, H = app.screen.height, z = view.z;
+  app.stage.scale.set(z);
+  app.stage.position.set(W / 2 * (1 - z) + view.ox * W, H / 2 * (1 - z) + view.oy * H);
+  const idle = Math.abs(z - 1) < .01 && Math.abs(view.ox) < .005 && Math.abs(view.oy) < .005;
+  const b = $('#bReset'); b.hidden = idle; if (!idle) b.textContent = 'Reset · ' + (Math.round(z * 10) / 10) + '×';
+}
+// hitung view baru bila zoom ke nz dengan titik (fx,fy) (px di dalam preview) tetap diam
+function zoomTarget(fx, fy, nz) {
+  const W = app.screen.width, H = app.screen.height, z = view.z;
+  nz = Math.max(ZMIN, Math.min(ZMAX, nz));
+  const Px = W / 2 * (1 - z) + view.ox * W, Py = H / 2 * (1 - z) + view.oy * H, k = nz / z;
+  const nPx = fx - k * (fx - Px), nPy = fy - k * (fy - Py);
+  return { z: nz, ox: (nPx - W / 2 * (1 - nz)) / W, oy: (nPy - H / 2 * (1 - nz)) / H };
+}
+const setView = v => { view.z = v.z; view.ox = v.ox; view.oy = v.oy; applyView(); };
+let vAnim;
+function animateView(to) {
+  cancelAnimationFrame(vAnim); const from = { ...view }, t0 = performance.now(), D = 160;
+  const step = now => {
+    const p = Math.min(1, (now - t0) / D), e = 1 - Math.pow(1 - p, 3);
+    setView({ z: from.z + (to.z - from.z) * e, ox: from.ox + (to.ox - from.ox) * e, oy: from.oy + (to.oy - from.oy) * e });
+    if (p < 1) vAnim = requestAnimationFrame(step);
+  };
+  vAnim = requestAnimationFrame(step);
+}
+function resetView() { cancelAnimationFrame(vAnim); setView({ z: 1, ox: 0, oy: 0 }); }
+$('#bReset').onclick = () => animateView({ z: 1, ox: 0, oy: 0 });
+(() => {
+  const stg = $('#stage'), ptrs = new Map();
+  let multi = false, moved = 0, tdown = 0, lastTap = { t: 0, x: 0, y: 0 };
+  const local = e => { const r = stg.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+  const skip = e => !state.model || e.target.closest('#split,#bSize,#bReset,#drop');
+  stg.addEventListener('pointerdown', e => {
+    if (skip(e)) return;
+    cancelAnimationFrame(vAnim);
+    stg.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, local(e));
+    if (ptrs.size === 1) { multi = false; moved = 0; tdown = performance.now(); } else multi = true;
+  });
+  stg.addEventListener('pointermove', e => {
+    const old = ptrs.get(e.pointerId); if (!old) return;
+    const nw = local(e), W = app.screen.width, H = app.screen.height;
+    if (ptrs.size === 1) {
+      moved += Math.hypot(nw.x - old.x, nw.y - old.y);
+      view.ox += (nw.x - old.x) / W; view.oy += (nw.y - old.y) / H; applyView();
+    } else if (ptrs.size === 2) {
+      const other = [...ptrs.entries()].find(([id]) => id !== e.pointerId)[1];
+      const d0 = Math.hypot(old.x - other.x, old.y - other.y) || 1, d1 = Math.hypot(nw.x - other.x, nw.y - other.y) || 1;
+      const c0 = { x: (old.x + other.x) / 2, y: (old.y + other.y) / 2 }, c1 = { x: (nw.x + other.x) / 2, y: (nw.y + other.y) / 2 };
+      const t = zoomTarget(c0.x, c0.y, view.z * d1 / d0);
+      view.z = t.z; view.ox = t.ox + (c1.x - c0.x) / W; view.oy = t.oy + (c1.y - c0.y) / H; applyView();
+    }
+    ptrs.set(e.pointerId, nw);
+  });
+  const up = e => {
+    if (!ptrs.has(e.pointerId)) return;
+    const p = ptrs.get(e.pointerId); ptrs.delete(e.pointerId);
+    if (ptrs.size) return;
+    // tap tunggal (tanpa geser) → cek double-tap
+    if (!multi && e.type === 'pointerup' && moved < 10 && performance.now() - tdown < 350) {
+      const now = performance.now();
+      if (now - lastTap.t < 320 && Math.hypot(p.x - lastTap.x, p.y - lastTap.y) < 40) {
+        lastTap.t = 0;
+        animateView(view.z > 1.2 ? { z: 1, ox: 0, oy: 0 } : zoomTarget(p.x, p.y, 2.5));
+      } else lastTap = { t: now, x: p.x, y: p.y };
+    }
+  };
+  stg.addEventListener('pointerup', up); stg.addEventListener('pointercancel', up);
+  stg.addEventListener('wheel', e => {
+    if (!state.model) return; e.preventDefault(); cancelAnimationFrame(vAnim);
+    const p = local(e); setView(zoomTarget(p.x, p.y, view.z * Math.exp(-e.deltaY * .0015)));
+  }, { passive: false });
+  stg.addEventListener('dblclick', e => e.preventDefault());
 })();
 
 async function openFiles(files) {
@@ -335,7 +413,7 @@ async function openFiles(files) {
     await offerRestore(name);
   } catch (e) { console.error(e); $('#status').textContent = 'Belum dimuat'; toast(e.message || 'Gagal memuat model', true); }
 }
-function unload() { if (state.model) { app.stage.removeChild(state.model); state.model.destroy(); } stop(); dispatch(s => { s.model = null; s.params = []; s.values = {}; }); $('#drop').classList.remove('hide'); }
+function unload() { resetView(); if (state.model) { app.stage.removeChild(state.model); state.model.destroy(); } stop(); dispatch(s => { s.model = null; s.params = []; s.values = {}; }); $('#drop').classList.remove('hide'); }
 $('#bOpen').onclick = $('#bPick').onclick = () => $('#file').click();
 $('#file').onchange = e => { if (e.target.files.length) openFiles(e.target.files); e.target.value = ''; };
 $('#bUnload').onclick = unload;

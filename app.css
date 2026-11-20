@@ -77,3 +77,8 @@ header{flex-wrap:nowrap;padding:6px 10px;gap:6px}
 #split:active i,#split:focus-visible i{background:var(--ac);opacity:1}
 main.dragging{user-select:none}
 @media(min-width:1024px){#split{display:none}}
+
+/* ---- pinch-zoom & pan di preview ---- */
+#stage{touch-action:none}
+#bReset{position:absolute;top:6px;left:6px;z-index:2;opacity:.9;min-height:40px;padding:0 12px;font-variant-numeric:tabular-nums}
+#bReset[hidden]{display:none}
